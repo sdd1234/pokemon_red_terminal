@@ -487,6 +487,8 @@ NPC_TARGETS = [
     ("fisher",         "FISHER",       "낚시꾼"),
     ("gentleman",      "GENTLEMAN",    "신사"),
     ("poke_ball",      "POKE_BALL",    "몬스터볼"),
+    ("super_nerd",     "SUPER_NERD",   "체육관관장(브록)"),
+    ("cooltrainer_m",  "COOLTRAINER_M","주니어트레이너"),
 ]
 
 def load_npc_image(name):

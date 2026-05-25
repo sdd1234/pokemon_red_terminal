@@ -468,6 +468,7 @@ void Overworld::triggerEncounter() {
 }
 
 bool Overworld::checkTrainerSight() {
+    return false;   // 시야 자동배틀 비활성화 — A키 상호작용으로 대체
     MapDef* m = curMap();
     if (!m) return false;
     for (int i = 0; i < m->numTrainers; i++) {
@@ -530,8 +531,6 @@ void Overworld::update(Key key) {
             // 애니메이션 종료 시점에 워프/인카운터/시야 체크
             checkWarps(state_.px, state_.py);
             checkSpecialTiles(state_.px, state_.py);
-            if (state_.pendingEvent == OwEvent::NONE)
-                checkTrainerSight();
         }
         return;
     }
@@ -637,6 +636,22 @@ void Overworld::update(Key key) {
                     state_.dialog.npc = &_signBuffer;
                     state_.dialog.lineIdx = 0;
                     talked = true;
+                }
+            }
+            // 트레이너 체크 — 앞에 있는 트레이너에게 말 걸면 배틀 시작
+            if (!talked) {
+                for (int i = 0; i < m->numTrainers; i++) {
+                    TrainerDef& tr = const_cast<TrainerDef&>(m->trainers[i]);
+                    if (tr.defeated) continue;
+                    if (tr.x == fx && tr.y == fy) {
+                        state_.eventData = i;
+                        if (tr.isBoss)
+                            state_.pendingEvent = OwEvent::BOSS_BATTLE;
+                        else
+                            state_.pendingEvent = OwEvent::TRAINER_BATTLE;
+                        talked = true;
+                        break;
+                    }
                 }
             }
             // 풀베기 나무 체크 — 'T' 타일 마주보고 A 누르면 처리

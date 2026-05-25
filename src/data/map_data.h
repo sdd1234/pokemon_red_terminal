@@ -908,9 +908,9 @@ inline MapDef MAP_8 = {
             {74, 19, 0},   // 꼬마돌, 꼬렛
             {11, 11, 0},
             false,
-            NPC_SPR_BRUNETTE,   // OW: COOLTRAINER_M 대체
-            5,                  // intro: COOLTRAINER_M
-            false               // isBoss
+            NPC_SPR_COOLTRAINER_M,  // OW: 주니어 트레이너
+            5,                      // intro: COOLTRAINER_M
+            false                   // isBoss
         },
         // BROCK (4,1) facing DOWN, sightRange 10 — 보스. 파티는 startBrock()에서 하드코딩(꼬마돌12+롱스톤14).
         // pokered _PewterGymBrockPreBattleText 요약. 승리 시 player_.beatenBrock=true → ENDING.
@@ -920,8 +920,8 @@ inline MapDef MAP_8 = {
             {74, 95, 0},   // 꼬마돌, 롱스톤 (참고용 — startBrock이 덮어씀)
             {12, 14, 0},
             false,
-            NPC_SPR_BRUNETTE,   // OW: SUPER_NERD 대체
-            3,                  // intro: BROCK
+            NPC_SPR_SUPER_NERD,     // OW: 체육관 관장(브록)
+            3,                      // intro: BROCK
             true                // isBoss → BOSS_BATTLE
         },
     }, 2,  // trainers
