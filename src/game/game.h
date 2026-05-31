@@ -37,6 +37,8 @@ enum class InGameMenuState {
     PARTY_DETAIL,  // 포켓몬 상세
     ITEM_BAG,      // 가방 (아이템 리스트 + 사용)
     ITEM_TARGET,   // 상처약 사용 대상 파티 선택
+    ITEM_MESSAGE,  // 아이템 사용 결과 대화상자 (이상한사탕 레벨업/기술습득) — A 입력으로 다음/종료
+    ITEM_LEARN_SELECT, // 이상한사탕 4가득 — 잊을 기술 선택 화면
     POKEDEX,       // 포켓덱스 목록
     POKEDEX_DETAIL,// 포켓덱스 상세
 };
@@ -174,8 +176,14 @@ private:
     int             itemMenuCursor_   = 0;
     int             itemTargetCursor_ = 0;
     const wchar_t*  itemMsg_          = nullptr;
-    wchar_t         itemMsgBuf_[64]   = {0};  // 동적 아이템 메시지(예: 이상한사탕 레벨업)
+    const wchar_t*  itemMsg2_         = nullptr;  // ITEM_MESSAGE 두 번째 줄(예: 새 기술 습득)
+    wchar_t         itemMsgBuf_[128]  = {0};  // 동적 아이템 메시지(예: 이상한사탕 레벨업)
+    wchar_t         itemMsgBuf2_[128] = {0};  // 두 번째 줄(기술 습득 메시지 등)
     int             itemMsgTimer_     = 0;
+    // 이상한사탕 — 4가득 슬롯 잊을 기술 선택 흐름
+    int             pendingLearnTargetIdx_ = 0;  // 학습 대상 파티 인덱스
+    int             pendingLearnNewMid_    = 0;  // 새로 배우려는 기술 id (0 = 없음 / 대기 없음)
+    int             pendingLearnCursor_    = 0;  // 잊을 기술 선택 커서 (0..numMoves: numMoves=배우지 않기)
     int             dexCursor_        = 0;   // 포켓덱스 목록 커서 (SPECIES 인덱스)
     int             dexDetailIdx_     = 0;   // 포켓덱스 상세 대상 (SPECIES 인덱스)
     void updateInGameMenu(Key key);

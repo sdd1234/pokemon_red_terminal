@@ -1,5 +1,6 @@
 #pragma once
 #include "../data/pokemon_data.h"
+#include "../data/type_chart.h"
 #include <cstring>
 
 struct PokemonMove {
@@ -62,6 +63,10 @@ struct Player {
     bool viridianHealed;
     bool pewterHealed;
     bool justWokeUp;
+
+    // 디버그 치트(Ctrl+M)로 한 번이라도 워프 메뉴를 연 적 있는지.
+    // 첫 진입 시 가방에 모든 아이템을 99개씩 채워 넣음 — 두 번째부터는 추가하지 않음.
+    bool cheatItemsGranted;
 
     // 전멸 시 돌아갈 위치 (마지막 회복 지점) — 원본 wLastBlackoutMap 대응
     int  lastBlackoutMapId;
@@ -150,10 +155,41 @@ inline void recalcStats(Pokemon& p) {
     p.spc    = calcStat(p.species->baseSpc, p.level);
 }
 
-// 이상한사탕 — 레벨 +1 (스탯 재계산, HP 증가분 반영, 3의 배수면 빈 슬롯 기술 자동 습득)
-// 성공 시 true. 이미 Lv100이면 false.
-inline bool rareCandyLevelUp(Pokemon& p) {
-    if (!p.species || p.level >= 100) return false;
+inline bool pokemonHasMove(const Pokemon& p, int moveId) {
+    for (int i = 0; i < p.numMoves; i++) {
+        if (p.moves[i].moveId == moveId) return true;
+    }
+    return false;
+}
+
+inline bool moveIsStrongAgainstSelf(const Pokemon& p, int moveId) {
+    if (!p.species) return false;
+    const MoveData& mv = getMoveData(moveId);
+    return getEffInt(mv.type, p.species->type1, p.species->type2) >= 20;
+}
+
+inline int pickFallbackMove(const Pokemon& p, int excludeMid = 0) {
+    if (!p.species) return 0;
+    for (int i = 1; i < NUM_MOVES_DATA; i++) {
+        int mid = MOVES[i].id;
+        if (mid <= 0 || mid == excludeMid) continue;
+        if (pokemonHasMove(p, mid)) continue;
+        if (getEffInt(MOVES[i].type, p.species->type1, p.species->type2) >= 20) continue;
+        return mid;
+    }
+    return 0;
+}
+
+// 이상한사탕 — 레벨 +1 (스탯 재계산, HP 증가분 반영, 3의 배수면 learnset 순서대로 새 기술 후보 탐색).
+// 반환:
+//    -1 = Lv100이라 못 올림.
+//     0 = 레벨업만 하고 학습 안 함 (3의 배수가 아니거나 새 기술 후보 없음).
+//   > 0 = 빈 슬롯에 자동으로 추가한 새 기술 id.
+// outWantedMid (nullptr 가능): 3의 배수인데 슬롯 4개 가득 차서 학습 못 한 경우, 후보 mid를 저장.
+//                              (자동 추가는 안 함 — 호출자가 잊을 기술 선택 UI를 띄워야 함)
+inline int rareCandyLevelUp(Pokemon& p, int* outWantedMid = nullptr) {
+    if (outWantedMid) *outWantedMid = 0;
+    if (!p.species || p.level >= 100) return -1;
     int oldMax = p.maxHP;
     p.level++;
     p.exp = expForLevel(p.level);
@@ -161,23 +197,36 @@ inline bool rareCandyLevelUp(Pokemon& p) {
     p.currentHP += (p.maxHP - oldMax);
     if (p.currentHP > p.maxHP) p.currentHP = p.maxHP;
     if (p.currentHP < 1) p.currentHP = 1;
-    if (p.level % 3 == 0 && p.numMoves < 4) {
-        for (int i = 0; i < 8; i++) {
-            const LearnMove& lm = p.species->learnset[i];
-            if (lm.level == 0 && lm.moveId == 0) break;
-            int mid = lm.moveId;
-            if (mid == 0) continue;
-            bool has = false;
-            for (int j = 0; j < p.numMoves; j++)
-                if (p.moves[j].moveId == mid) { has = true; break; }
-            if (has) continue;
+    if (p.level % 3 != 0) return 0;
+    // 다음 배울 기술 후보 탐색
+    for (int i = 0; i < 8; i++) {
+        const LearnMove& lm = p.species->learnset[i];
+        if (lm.level == 0 && lm.moveId == 0) break;
+        int mid = lm.moveId;
+        if (mid == 0) continue;
+        if (pokemonHasMove(p, mid)) continue;
+        if (moveIsStrongAgainstSelf(p, mid)) continue;
+        if (p.numMoves < 4) {
+            // 빈 슬롯 — 자동 학습
             p.moves[p.numMoves].moveId = mid;
             p.moves[p.numMoves].pp     = getMoveData(mid).maxPP;
             p.numMoves++;
-            break;
+            return mid;
         }
+        // 4 가득 — UI로 위임
+        if (outWantedMid) *outWantedMid = mid;
+        return 0;
     }
-    return true;
+    int mid = pickFallbackMove(p);
+    if (mid == 0) return 0;
+    if (p.numMoves < 4) {
+        p.moves[p.numMoves].moveId = mid;
+        p.moves[p.numMoves].pp     = getMoveData(mid).maxPP;
+        p.numMoves++;
+        return mid;
+    }
+    if (outWantedMid) *outWantedMid = mid;
+    return 0;
 }
 
 inline Pokemon makePokemon(int speciesId, int level) {

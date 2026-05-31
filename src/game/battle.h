@@ -125,6 +125,7 @@ private:
     void silentLevelUp(Pokemon& p, int pokeIdx, bool allowQueue = true); // 막타 외 — 레벨업(4칸 가득: allowQueue면 교체 큐, 아니면 FIFO 자동)
     int  nextLearnableMove(Pokemon& p, int pokeIdx); // learnset 순서상 아직 안 배운 다음 기술 (없으면 0)
     void startLearnMoveQueue();         // 경험치 메시지 후 기술 교체 팝업 큐 처리 시작
+    void setupLearnMoveItem();          // 현재 learnQueueIdx 항목에 맞춰 메시지/서브페이즈 셋업 (빈슬롯=즉시습득+결과, 4가득=잊을기술 선택)
     int  chooseEnemyMove();
     void drawHPBar(int x, int y, int cur, int maxHP, const std::string& color);
     void drawSprite(int x, int y, int speciesId, bool back);

@@ -194,8 +194,22 @@ void Game::update(Key key) {
     case Scene::RECEIVE_DEX:    updateReceiveDex(key);     break;
     case Scene::OVERWORLD: {
         if (!ow_) break;
-        // Ctrl+M → 디버그 워프 메뉴
+        // Ctrl+M → 디버그 워프 메뉴 + (첫 1회) 가방에 모든 아이템을 정확히 99개씩 세팅
         if (key == Key::WARP_MENU) {
+            if (!player_.cheatItemsGranted) {
+                ItemId allItems[] = {ITEM_POTION, ITEM_POKE_BALL, ITEM_RARE_CANDY};
+                for (ItemId id : allItems) {
+                    int idx = findBagSlot(player_, id);
+                    if (idx >= 0) {
+                        player_.bag[idx].count = 99;
+                    } else if (player_.bagSize < MAX_BAG_SLOTS) {
+                        player_.bag[player_.bagSize].id    = id;
+                        player_.bag[player_.bagSize].count = 99;
+                        player_.bagSize++;
+                    }
+                }
+                player_.cheatItemsGranted = true;
+            }
             changeScene(Scene::WARP_MENU);
             warpCursor_ = 0;
             break;
@@ -1481,8 +1495,10 @@ void Game::updateInGameMenu(Key key) {
     if (key == Key::B) {
         if (menuState_ == InGameMenuState::TOP_LEVEL) {
             changeScene(prevScene_);
+            return;
         } else if (menuState_ == InGameMenuState::ITEM_TARGET) {
             menuState_ = InGameMenuState::ITEM_BAG;
+            return;
         } else if (menuState_ == InGameMenuState::PARTY_DETAIL) {
             // 기술 선택 중이면 해제, 아니면 파티 목록으로
             if (detailSwapSel_ >= 0) {
@@ -1490,13 +1506,19 @@ void Game::updateInGameMenu(Key key) {
             } else {
                 menuState_ = InGameMenuState::PARTY_VIEW;
             }
+            return;
         } else if (menuState_ == InGameMenuState::POKEDEX_DETAIL) {
             menuState_ = InGameMenuState::POKEDEX;
+            return;
+        } else if (menuState_ == InGameMenuState::ITEM_MESSAGE ||
+                   menuState_ == InGameMenuState::ITEM_LEARN_SELECT) {
+            // ITEM_MESSAGE / ITEM_LEARN_SELECT는 아래 switch에서 자체 처리
+            // (TOP_LEVEL로 점프하지 않도록 여기서 return 안 함)
         } else {
             menuState_  = InGameMenuState::TOP_LEVEL;
             menuCursor_ = 0;
+            return;
         }
-        return;
     }
 
     switch (menuState_) {
@@ -1638,20 +1660,39 @@ void Game::updateInGameMenu(Key key) {
                 itemMsg_ = L"빈 슬롯이다!";
                 itemMsgTimer_ = 60;
             } else if (useId == ITEM_RARE_CANDY) {
-                // 이상한사탕 — 레벨 +1
+                // 이상한사탕 — 레벨 +1, 3의 배수면 새 기술 학습 또는 잊을 기술 선택 UI
                 if (p.level >= 100) {
                     itemMsg_ = L"더 이상 레벨을 올릴 수 없다!";
                     itemMsgTimer_ = 90;
                     menuState_ = InGameMenuState::ITEM_BAG;
                 } else {
-                    rareCandyLevelUp(p);
+                    int wantedMid = 0;
+                    int learnedMid = rareCandyLevelUp(p, &wantedMid);
                     removeItem(player_, ITEM_RARE_CANDY, 1);
-                    swprintf(itemMsgBuf_, 64, L"이상한사탕! %ls의 레벨이 %d(으)로 올랐다!",
+                    // 1줄: 레벨업
+                    swprintf(itemMsgBuf_, 128, L"이상한사탕! %ls의 레벨이 %d(으)로 올랐다!",
                         p.species->name, p.level);
                     itemMsg_ = itemMsgBuf_;
-                    itemMsgTimer_ = 120;
-                    // 가방이 비어도 ITEM_BAG에 머물러 레벨업 메시지를 보여줌
-                    menuState_ = InGameMenuState::ITEM_BAG;
+                    // 2줄: 빈슬롯=배웠다, 4가득=배우고 싶어한다 (이후 잊을 기술 선택)
+                    if (learnedMid > 0) {
+                        swprintf(itemMsgBuf2_, 128, L"%ls은(는) 새로운 기술 %ls을(를) 배웠다!",
+                            p.species->name, getMoveData(learnedMid).name);
+                        itemMsg2_ = itemMsgBuf2_;
+                        pendingLearnNewMid_ = 0;
+                    } else if (wantedMid > 0) {
+                        swprintf(itemMsgBuf2_, 128, L"%ls은(는) 새로운 기술 %ls을(를) 배우고 싶어한다!",
+                            p.species->name, getMoveData(wantedMid).name);
+                        itemMsg2_ = itemMsgBuf2_;
+                        pendingLearnTargetIdx_ = itemTargetCursor_;
+                        pendingLearnNewMid_    = wantedMid;
+                        pendingLearnCursor_    = 0;
+                    } else {
+                        itemMsgBuf2_[0] = 0;
+                        itemMsg2_ = nullptr;
+                        pendingLearnNewMid_ = 0;
+                    }
+                    itemMsgTimer_ = 0;
+                    menuState_ = InGameMenuState::ITEM_MESSAGE;
                     if (itemMenuCursor_ >= player_.bagSize && player_.bagSize > 0)
                         itemMenuCursor_ = player_.bagSize - 1;
                 }
@@ -1682,6 +1723,69 @@ void Game::updateInGameMenu(Key key) {
         }
         if (key == Key::B) {
             menuState_ = InGameMenuState::ITEM_BAG;
+        }
+        break;
+    }
+    case InGameMenuState::ITEM_MESSAGE: {
+        // 아이템 사용 결과 대화상자 — A/Z/Enter/B 입력 시 다음 단계로
+        if (key == Key::A || key == Key::B) {
+            if (pendingLearnNewMid_ > 0) {
+                // 4가득 — 잊을 기술 선택 UI로 전환
+                pendingLearnCursor_ = 0;
+                menuState_ = InGameMenuState::ITEM_LEARN_SELECT;
+            } else {
+                // 메시지 정리 후 가방으로 복귀
+                itemMsg_      = nullptr;
+                itemMsg2_     = nullptr;
+                itemMsgTimer_ = 0;
+                if (player_.bagSize == 0) {
+                    menuState_  = InGameMenuState::TOP_LEVEL;
+                    menuCursor_ = 2;
+                } else {
+                    menuState_ = InGameMenuState::ITEM_BAG;
+                }
+            }
+        }
+        break;
+    }
+    case InGameMenuState::ITEM_LEARN_SELECT: {
+        // 잊을 기술 선택 — 0~numMoves-1 = 기술, numMoves = 배우지 않기
+        if (pendingLearnTargetIdx_ < 0 || pendingLearnTargetIdx_ >= player_.partySize) {
+            // 안전 가드 — 잘못된 상태면 가방으로 복귀
+            pendingLearnNewMid_ = 0;
+            menuState_ = InGameMenuState::ITEM_BAG;
+            break;
+        }
+        Pokemon& target = player_.party[pendingLearnTargetIdx_];
+        int nOpt = target.numMoves + 1;  // +1 = 배우지 않기
+        if (key == Key::UP)
+            pendingLearnCursor_ = (pendingLearnCursor_ - 1 + nOpt) % nOpt;
+        if (key == Key::DOWN)
+            pendingLearnCursor_ = (pendingLearnCursor_ + 1) % nOpt;
+        // B 또는 (A + "배우지 않기" 위치) → 학습 포기
+        if (key == Key::B || (key == Key::A && pendingLearnCursor_ >= target.numMoves)) {
+            swprintf(itemMsgBuf_, 128, L"%ls은(는) %ls을(를) 배우지 않았다.",
+                target.species->name, getMoveData(pendingLearnNewMid_).name);
+            itemMsg_ = itemMsgBuf_;
+            itemMsgBuf2_[0] = 0;
+            itemMsg2_ = nullptr;
+            pendingLearnNewMid_ = 0;
+            menuState_ = InGameMenuState::ITEM_MESSAGE;
+        } else if (key == Key::A) {
+            // 선택한 슬롯의 기술을 새 기술로 교체
+            int slot  = pendingLearnCursor_;
+            int oldId = target.moves[slot].moveId;
+            int newId = pendingLearnNewMid_;
+            target.moves[slot].moveId = newId;
+            target.moves[slot].pp     = getMoveData(newId).maxPP;
+            swprintf(itemMsgBuf_, 128, L"%ls은(는) %ls을(를) 잊고",
+                target.species->name, getMoveData(oldId).name);
+            swprintf(itemMsgBuf2_, 128, L"새로운 기술 %ls을(를) 배웠다!",
+                getMoveData(newId).name);
+            itemMsg_  = itemMsgBuf_;
+            itemMsg2_ = itemMsgBuf2_;
+            pendingLearnNewMid_ = 0;
+            menuState_ = InGameMenuState::ITEM_MESSAGE;
         }
         break;
     }
@@ -1790,12 +1894,16 @@ void Game::renderInGameMenu() {
         const Pokemon& p = player_.party[detailPartyIdx_];
         if (p.species) {
             char statbuf[64];
-            snprintf(statbuf, sizeof(statbuf), "Lv.%d  HP:%d/%d", p.level, p.currentHP, p.maxHP);
-            renderer.print(bx+4, by+5, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
-            snprintf(statbuf, sizeof(statbuf), "ATK:%-4d  DEF:%-4d", p.atk, p.def);
-            renderer.print(bx+4, by+7, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
-            snprintf(statbuf, sizeof(statbuf), "SPE:%-4d  SPC:%-4d", p.spe, p.spc);
-            renderer.print(bx+4, by+8, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
+            snprintf(statbuf, sizeof(statbuf), "Lv.%-3d  %d/%d", p.level, p.currentHP, p.maxHP);
+            renderer.print(bx+8, by+5, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
+            snprintf(statbuf, sizeof(statbuf), "%-4d", p.atk);
+            renderer.print(bx+9, by+7, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
+            snprintf(statbuf, sizeof(statbuf), "%-4d", p.def);
+            renderer.print(bx+21, by+7, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
+            snprintf(statbuf, sizeof(statbuf), "%-4d", p.spe);
+            renderer.print(bx+9, by+8, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
+            snprintf(statbuf, sizeof(statbuf), "%-4d", p.spc);
+            renderer.print(bx+21, by+8, statbuf, std::string(Color::BG_BLACK) + Color::WHITE);
             // 경험치 바 (현재 레벨 구간 진행도)
             int curE  = p.exp - expForLevel(p.level);
             int needE = expForLevel(p.level + 1) - expForLevel(p.level);
@@ -1821,7 +1929,9 @@ void Game::renderInGameMenu() {
             }
         }
     } else if (menuState_ == InGameMenuState::ITEM_BAG ||
-               menuState_ == InGameMenuState::ITEM_TARGET) {
+               menuState_ == InGameMenuState::ITEM_TARGET ||
+               menuState_ == InGameMenuState::ITEM_MESSAGE ||
+               menuState_ == InGameMenuState::ITEM_LEARN_SELECT) {
         int bw = 44, bh = 14, bx = W/2 - 22, by = 5;
         renderer.drawBox(bx, by, bw, bh, std::string(Color::BG_BLACK) + Color::WHITE);
         renderer.fillRect(bx+1, by+1, bw-2, bh-2, ' ', std::string(Color::BG_BLACK) + Color::WHITE);
@@ -2056,6 +2166,82 @@ void Game::renderInGameMenuKorean() {
             renderer.printW(bx + 4, by + 3 + i, lineBuf, color);
         }
         renderer.printW(bx + 2, by + bh - 2, L"[Z]: 사용  [BS]: 뒤로",
+            std::string(Color::BG_BLACK) + Color::BRIGHT_BLACK);
+    } else if (menuState_ == InGameMenuState::ITEM_MESSAGE) {
+        // 가방 박스를 배경으로 유지 + 화면 하단 전체 폭 대화상자 오버레이.
+        // 첫 줄: 레벨업 메시지. 둘째 줄(있을 때): 새 기술 습득 메시지. A로 다음/종료.
+        int bw = 44, bx = W/2 - 22, by = 5;
+        renderer.printW(bx + bw/2 - 2, by + 1, L"가방",
+            std::string(Color::BG_BLACK) + Color::BRIGHT_WHITE);
+        for (int i = 0; i < player_.bagSize; i++) {
+            renderer.printW(bx + 4, by + 3 + i, getItemName(player_.bag[i].id),
+                std::string(Color::BG_BLACK) + Color::WHITE);
+        }
+        // 하단 대화상자
+        int H = renderer.height;
+        int dlgH = 5;
+        int dlgY = H - dlgH;
+        renderer.fillRect(0, dlgY, W, dlgH, ' ',
+            std::string(Color::BG_BLACK) + Color::BRIGHT_WHITE);
+        // 상단 경계선
+        for (int x = 0; x < W; x++)
+            renderer.setCell(x, dlgY, '-',
+                std::string(Color::BG_BLACK) + Color::BRIGHT_WHITE);
+        if (itemMsg_) {
+            renderer.printW(2, dlgY + 1, itemMsg_,
+                std::string(Color::BG_BLACK) + Color::BRIGHT_CYAN);
+        }
+        if (itemMsg2_) {
+            renderer.printW(2, dlgY + 2, itemMsg2_,
+                std::string(Color::BG_BLACK) + Color::BRIGHT_YELLOW);
+        }
+        renderer.printW(2, dlgY + dlgH - 1, L"[ Z / Enter: 계속 ]",
+            std::string(Color::BG_BLACK) + Color::BRIGHT_BLACK);
+    } else if (menuState_ == InGameMenuState::ITEM_LEARN_SELECT) {
+        // 잊을 기술 선택 UI — 화면 하단에 4기술 + "배우지 않기" 옵션 나열.
+        int bw = 44, bx = W/2 - 22, by = 5;
+        renderer.printW(bx + bw/2 - 2, by + 1, L"가방",
+            std::string(Color::BG_BLACK) + Color::BRIGHT_WHITE);
+        for (int i = 0; i < player_.bagSize; i++) {
+            renderer.printW(bx + 4, by + 3 + i, getItemName(player_.bag[i].id),
+                std::string(Color::BG_BLACK) + Color::WHITE);
+        }
+        int H = renderer.height;
+        int dlgH = 9;
+        int dlgY = H - dlgH;
+        renderer.fillRect(0, dlgY, W, dlgH, ' ',
+            std::string(Color::BG_BLACK) + Color::BRIGHT_WHITE);
+        for (int x = 0; x < W; x++)
+            renderer.setCell(x, dlgY, '-',
+                std::string(Color::BG_BLACK) + Color::BRIGHT_WHITE);
+        // 안내 메시지
+        if (pendingLearnTargetIdx_ >= 0 && pendingLearnTargetIdx_ < player_.partySize) {
+            const Pokemon& tgt = player_.party[pendingLearnTargetIdx_];
+            wchar_t buf[128];
+            swprintf(buf, 128, L"잊을 기술을 골라줘. (새 기술: %ls)",
+                getMoveData(pendingLearnNewMid_).name);
+            renderer.printW(2, dlgY + 1, buf,
+                std::string(Color::BG_BLACK) + Color::BRIGHT_CYAN);
+            // 4 기술
+            for (int i = 0; i < tgt.numMoves; i++) {
+                bool sel = (pendingLearnCursor_ == i);
+                std::string color = std::string(Color::BG_BLACK) +
+                    (sel ? Color::BRIGHT_YELLOW : Color::WHITE);
+                wchar_t line[80];
+                const MoveData& mv = getMoveData(tgt.moves[i].moveId);
+                swprintf(line, 80, L"%ls %ls  (PP %d/%d)",
+                    sel ? L"▶" : L"  ", mv.name, tgt.moves[i].pp, mv.maxPP);
+                renderer.printW(2, dlgY + 3 + i, line, color);
+            }
+            // "배우지 않기" 옵션
+            bool skipSel = (pendingLearnCursor_ == tgt.numMoves);
+            std::string skipColor = std::string(Color::BG_BLACK) +
+                (skipSel ? Color::BRIGHT_YELLOW : Color::WHITE);
+            wchar_t skipLine[40];
+            swprintf(skipLine, 40, L"%ls 배우지 않기", skipSel ? L"▶" : L"  ");
+            renderer.printW(2, dlgY + 3 + tgt.numMoves, skipLine, skipColor);
+        }
+        renderer.printW(2, dlgY + dlgH - 1, L"[↑↓] 선택  [Z] 결정  [BS] 포기",
             std::string(Color::BG_BLACK) + Color::BRIGHT_BLACK);
     }
 }

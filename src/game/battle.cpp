@@ -228,42 +228,71 @@ void Battle::advanceAfterFaint() {
 // 경험치 메시지 종료 후 — 기술 교체 팝업 대기열의 첫 항목으로 진입
 void Battle::startLearnMoveQueue() {
     state_.learnQueueIdx     = 0;
-    state_.learnSubPhase     = 0;
     state_.learnForgetCursor = 0;
-    int pokeIdx = state_.learnQueuePoke[0];
-    int mvId    = state_.learnQueue[0];
-    swprintf(state_.msg, 128, L"%ls은(는) 새로운 기술 %ls을(를) 배우고 싶어한다!",
-        pl_.party[pokeIdx].species->name, getMoveData(mvId).name);
-    swprintf(state_.msg2, 128, L"하지만 기술은 4개까지만 배울 수 있다!");
     state_.phase = BattlePhase::LEARN_MOVE;
+    setupLearnMoveItem();
+}
+
+// 현재 learnQueueIdx 항목에 맞춰 메시지/서브페이즈 셋업.
+// 빈 슬롯이면 즉시 슬롯에 추가하고 결과 메시지(subPhase 2)로 진입 — 사용자에게 "X을(를) 배웠다!" 안내.
+// 4개 가득이면 안내 메시지(subPhase 0) → 잊을 기술 선택(subPhase 1) → 결과 메시지(subPhase 2).
+void Battle::setupLearnMoveItem() {
+    int pokeIdx = state_.learnQueuePoke[state_.learnQueueIdx];
+    int mvId    = state_.learnQueue[state_.learnQueueIdx];
+    Pokemon& pp = pl_.party[pokeIdx];
+    if (pp.numMoves < 4) {
+        // 빈 슬롯 — 즉시 습득 후 결과 메시지로 점프
+        pp.moves[pp.numMoves].moveId = mvId;
+        pp.moves[pp.numMoves].pp     = getMoveData(mvId).maxPP;
+        pp.numMoves++;
+        swprintf(state_.msg, 128, L"%ls은(는) %ls을(를) 배웠다!",
+            pp.species->name, getMoveData(mvId).name);
+        state_.msg2[0] = 0;
+        state_.learnSubPhase = 2;
+    } else {
+        // 4개 가득 — 잊을 기술 선택 흐름
+        swprintf(state_.msg, 128, L"%ls은(는) 새로운 기술 %ls을(를) 배우고 싶어한다!",
+            pp.species->name, getMoveData(mvId).name);
+        swprintf(state_.msg2, 128, L"하지만 기술은 4개까지만 배울 수 있다!");
+        state_.learnSubPhase = 0;
+    }
     state_.awaitKey = true;
 }
 
 // learnset 순서상 아직 안 배운(그리고 대기열에도 없는) 다음 기술 id
 // 단, 자신의 약점 속성(자기 타입에게 효과가 굉장한 타입) 기술은 배우지 않는다.
 int Battle::nextLearnableMove(Pokemon& p, int pokeIdx) {
+    if (!p.species) return 0;
     for (int i = 0; i < 8; i++) {
         const LearnMove& lm = p.species->learnset[i];
         if (lm.level == 0 && lm.moveId == 0) break;
         int mid = lm.moveId;
         if (mid == 0) continue;
-        bool has = false;
-        for (int j = 0; j < p.numMoves; j++)
-            if (p.moves[j].moveId == mid) { has = true; break; }
+        bool has = pokemonHasMove(p, mid);
         // 같은 포켓몬의 교체 대기열에 이미 있으면 제외
         for (int j = 0; j < state_.learnQueueCnt; j++)
             if (state_.learnQueuePoke[j] == pokeIdx && state_.learnQueue[j] == mid) { has = true; break; }
         if (has) continue;
         // 약점 속성 기술 제외: 기술 타입이 내 타입에게 효과가 굉장하면(>=2x) 건너뜀
-        Type mt = getMoveData(mid).type;
-        if (getEffInt(mt, p.species->type1, p.species->type2) >= 20) continue;
+        if (moveIsStrongAgainstSelf(p, mid)) continue;
+        return mid;
+    }
+    for (int i = 1; i < NUM_MOVES_DATA; i++) {
+        int mid = MOVES[i].id;
+        if (mid <= 0) continue;
+        bool has = pokemonHasMove(p, mid);
+        for (int j = 0; j < state_.learnQueueCnt; j++)
+            if (state_.learnQueuePoke[j] == pokeIdx && state_.learnQueue[j] == mid) { has = true; break; }
+        if (has) continue;
+        if (getEffInt(MOVES[i].type, p.species->type1, p.species->type2) >= 20) continue;
         return mid;
     }
     return 0;
 }
 
 // 막타 외 포켓몬 — 레벨업 + 3의 배수 기술 획득
-// (빈 슬롯이면 즉시 습득, 4칸 가득이면 교체 팝업 대기열에 추가 → 막타와 동일하게 선택)
+// 빈/가득 무관 항상 교체 팝업 대기열에 추가 → setupLearnMoveItem이 빈슬롯=즉시습득+메시지, 4가득=잊을기술 선택으로 분기.
+// allowQueue=false (포획 등 팝업 흐름이 없는 경우) → 빈 슬롯 자동 추가, 가득 시 가장 오래된 기술 밀어내기.
 void Battle::silentLevelUp(Pokemon& p, int pokeIdx, bool allowQueue) {
     while (p.exp >= expForLevel(p.level + 1)) {
         p.level++;
@@ -272,21 +301,23 @@ void Battle::silentLevelUp(Pokemon& p, int pokeIdx, bool allowQueue) {
         if (p.level % 3 == 0) {
             int mid = nextLearnableMove(p, pokeIdx);
             if (mid != 0) {
-                if (p.numMoves < 4) {
-                    // 빈 슬롯 → 즉시 습득
-                    p.moves[p.numMoves].moveId = mid;
-                    p.moves[p.numMoves].pp = getMoveData(mid).maxPP;
-                    p.numMoves++;
-                } else if (allowQueue && state_.learnQueueCnt < 8) {
-                    // 4칸 가득 → 교체 팝업 대기열에 추가 (대상 포켓몬 인덱스 기록)
-                    state_.learnQueuePoke[state_.learnQueueCnt] = pokeIdx;
-                    state_.learnQueue[state_.learnQueueCnt]     = mid;
-                    state_.learnQueueCnt++;
-                } else if (!allowQueue) {
-                    // 팝업 흐름이 없는 경우(포획 등) → 가장 오래된 기술을 밀어내고 자동 습득
-                    for (int k = 0; k < 3; k++) p.moves[k] = p.moves[k + 1];
-                    p.moves[3].moveId = mid;
-                    p.moves[3].pp = getMoveData(mid).maxPP;
+                if (allowQueue) {
+                    if (state_.learnQueueCnt < 8) {
+                        state_.learnQueuePoke[state_.learnQueueCnt] = pokeIdx;
+                        state_.learnQueue[state_.learnQueueCnt]     = mid;
+                        state_.learnQueueCnt++;
+                    }
+                } else {
+                    // 팝업 흐름 없음(포획 등) → 자동 처리
+                    if (p.numMoves < 4) {
+                        p.moves[p.numMoves].moveId = mid;
+                        p.moves[p.numMoves].pp = getMoveData(mid).maxPP;
+                        p.numMoves++;
+                    } else {
+                        for (int k = 0; k < 3; k++) p.moves[k] = p.moves[k + 1];
+                        p.moves[3].moveId = mid;
+                        p.moves[3].pp = getMoveData(mid).maxPP;
+                    }
                 }
             }
         }
@@ -299,21 +330,14 @@ void Battle::checkLevelUp(Pokemon& p) {
         p.level++;
         recalcStats(p);
         if (p.currentHP > p.maxHP) p.currentHP = p.maxHP;
-        // 3의 배수 레벨마다 새 기술 1개 획득 (learnset 순서대로)
+        // 3의 배수 레벨마다 새 기술 1개 획득 후보를 큐에 추가 (learnset 순서대로).
+        // 빈 슬롯이든 4가득이든 큐를 통해 일관된 메시지 흐름으로 처리한다.
         if (p.level % 3 == 0) {
             int mid = nextLearnableMove(p, state_.playerPartyIdx);
-            if (mid != 0) {
-                if (p.numMoves < 4) {
-                    // 빈 슬롯 → 즉시 습득
-                    p.moves[p.numMoves].moveId = mid;
-                    p.moves[p.numMoves].pp = getMoveData(mid).maxPP;
-                    p.numMoves++;
-                } else if (state_.learnQueueCnt < 8) {
-                    // 4개 가득 → 교체 팝업 대기열에 추가 (대상 = 막타 포켓몬)
-                    state_.learnQueuePoke[state_.learnQueueCnt] = state_.playerPartyIdx;
-                    state_.learnQueue[state_.learnQueueCnt]     = mid;
-                    state_.learnQueueCnt++;
-                }
+            if (mid != 0 && state_.learnQueueCnt < 8) {
+                state_.learnQueuePoke[state_.learnQueueCnt] = state_.playerPartyIdx;
+                state_.learnQueue[state_.learnQueueCnt]     = mid;
+                state_.learnQueueCnt++;
             }
         }
         state_.leveledUp = true;
@@ -921,15 +945,9 @@ void Battle::update(Key key) {
             if (key == Key::A || key == Key::B) {
                 state_.learnQueueIdx++;
                 if (state_.learnQueueIdx < state_.learnQueueCnt) {
-                    // 다음 교체 대기 항목 (대상 포켓몬이 다를 수 있음)
-                    state_.learnSubPhase     = 0;
+                    // 다음 항목 — 빈 슬롯 / 4가득 분기를 다시 처리
                     state_.learnForgetCursor = 0;
-                    int nextPoke = state_.learnQueuePoke[state_.learnQueueIdx];
-                    int nextId   = state_.learnQueue[state_.learnQueueIdx];
-                    swprintf(state_.msg, 128, L"%ls은(는) 새로운 기술 %ls을(를) 배우고 싶어한다!",
-                        pl_.party[nextPoke].species->name, getMoveData(nextId).name);
-                    swprintf(state_.msg2, 128, L"하지만 기술은 4개까지만 배울 수 있다!");
-                    state_.awaitKey = true;
+                    setupLearnMoveItem();
                 } else {
                     // 모든 교체 처리 완료 → 다음 상대 또는 승리
                     state_.learnQueueCnt = 0;

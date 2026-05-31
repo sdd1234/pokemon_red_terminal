@@ -810,7 +810,7 @@ inline MapDef MAP_6 = {
         {5, 11, MAP_PALLET, 12, 12},
     }, 2,  // warps
     {}, 0,  // no encounters
-    -1, MAP_PALLET,  // north/south
+    -1, -1,  // 실내 — 남쪽 경계 fall-through 없음 (도어 'D'/'?' 워프만 사용)
     5, 11, 5, 10,  // entry: 정문(12,11→연구소) 진입 시 (5,10) 문 안쪽
     nullptr  // bgm
 };
@@ -848,7 +848,7 @@ inline MapDef MAP_7 = {
         {7, 1, MAP_PLAYER_HOUSE2, 7, 2},
     }, 3,  // warps
     {}, 0,  // no encounters
-    -1, MAP_PALLET,  // north/south
+    -1, -1,  // 실내 — 남쪽 경계 fall-through 없음 (도어 'C' 워프만 사용)
     3, 7, 3, 7,  // entry: 팔레트→1F 도착시 (3,7) (정문)
     nullptr  // bgm
 };
@@ -876,7 +876,7 @@ inline MapDef MAP_9 = {
         {7, 1, MAP_PLAYER_HOUSE, 7, 2},
     }, 1,  // warps
     {}, 0,  // no encounters
-    -1, MAP_PLAYER_HOUSE,  // north/south
+    -1, -1,  // 실내 — 남쪽 벽 fall-through 없음 (사다리 'j' 만 1F로 이동)
     7, 2, 7, 2,  // entry: 1F→2F 도착시 (7,2) (사다리 한 칸 아래)
     nullptr  // bgm
 };
@@ -949,7 +949,7 @@ inline MapDef MAP_8 = {
         {5, 13, MAP_PEWTER, 16, 17},
     }, 2,  // warps
     {}, 0,  // no encounters
-    -1, MAP_PEWTER,  // north/south
+    -1, -1,  // 실내 — 남쪽 경계 fall-through 없음 (도어 '?' 워프만 사용)
     4, 13, 4, 0,  // entry points
     nullptr  // bgm
 };
@@ -987,7 +987,7 @@ inline MapDef MAP_10 = {
         {3, 7, MAP_PALLET, 13, 6},
     }, 2,  // warps
     {}, 0,  // no encounters
-    -1, MAP_PALLET,  // north/south
+    -1, -1,  // 실내 — 남쪽 경계 fall-through 없음 (도어 'C' 워프만 사용)
     3, 7, 3, 7,
     nullptr
 };
@@ -1325,7 +1325,7 @@ inline MapDef MAP_18 = {
         {3, 7, MAP_VIRIDIAN, 21, 16},
     }, 2,  // warps
     {}, 0,  // no encounters
-    -1, MAP_VIRIDIAN,  // north/south
+    -1, -1,  // 실내 — 남쪽 경계 fall-through 없음 (도어 'C' 워프만 사용)
     3, 7, 3, 7,  // entry
     nullptr  // bgm
 };
@@ -1376,7 +1376,7 @@ inline MapDef MAP_19 = {
         {3, 7, MAP_VIRIDIAN, 21, 10},
     }, 2,  // warps
     {}, 0,  // no encounters
-    -1, MAP_VIRIDIAN,  // north/south
+    -1, -1,  // 실내 — 남쪽 경계 fall-through 없음 (도어 'C' 워프만 사용)
     3, 7, 3, 7,  // entry
     nullptr  // bgm
 };
