@@ -210,6 +210,8 @@ void Game::update(Key key) {
                 }
                 player_.cheatItemsGranted = true;
             }
+            // 테스트용: 누를 때마다 이상한사탕 1개 추가 (기술 습득 창 반복 확인)
+            addItem(player_, ITEM_RARE_CANDY, 1);
             changeScene(Scene::WARP_MENU);
             warpCursor_ = 0;
             break;
@@ -2229,8 +2231,10 @@ void Game::renderInGameMenuKorean() {
                     (sel ? Color::BRIGHT_YELLOW : Color::WHITE);
                 wchar_t line[80];
                 const MoveData& mv = getMoveData(tgt.moves[i].moveId);
+                // 커서 마커는 ASCII '>'로 — ▶(U+25B6)는 콘솔이 1칸으로 그려
+                // flush 커서가 어긋나면서 이전 프레임 글자가 남아 겹쳐 보였다.
                 swprintf(line, 80, L"%ls %ls  (PP %d/%d)",
-                    sel ? L"▶" : L"  ", mv.name, tgt.moves[i].pp, mv.maxPP);
+                    sel ? L"> " : L"  ", mv.name, tgt.moves[i].pp, mv.maxPP);
                 renderer.printW(2, dlgY + 3 + i, line, color);
             }
             // "배우지 않기" 옵션
@@ -2238,10 +2242,11 @@ void Game::renderInGameMenuKorean() {
             std::string skipColor = std::string(Color::BG_BLACK) +
                 (skipSel ? Color::BRIGHT_YELLOW : Color::WHITE);
             wchar_t skipLine[40];
-            swprintf(skipLine, 40, L"%ls 배우지 않기", skipSel ? L"▶" : L"  ");
+            swprintf(skipLine, 40, L"%ls 배우지 않기", skipSel ? L"> " : L"  ");
             renderer.printW(2, dlgY + 3 + tgt.numMoves, skipLine, skipColor);
         }
-        renderer.printW(2, dlgY + dlgH - 1, L"[↑↓] 선택  [Z] 결정  [BS] 포기",
+        // ↑↓(U+2191/2193)도 ambiguous-width라 콘솔이 1칸으로 그려 겹침을 유발 → 한글로 대체
+        renderer.printW(2, dlgY + dlgH - 1, L"[위/아래] 선택  [Z] 결정  [BS] 포기",
             std::string(Color::BG_BLACK) + Color::BRIGHT_BLACK);
     }
 }
