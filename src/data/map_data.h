@@ -300,8 +300,8 @@ inline MapDef MAP_2 = {
         // 서쪽 22번도로 입구 차단 노인 — 공사중 안내 (게임 스코프 한정용 커스텀 NPC)
         {5, 17, {
             L"할아버지: 으흠... 22번도로는 지금 공사중이라네.",
-            L"미안하지만 지금은 들어갈 수 없어.",
-            L"공사가 끝나면 다시 와주게.",
+            L"할아버지: 미안하지만 지금은 들어갈 수 없어.",
+            L"할아버지: 공사가 끝나면 다시 와주게.",
             nullptr
         }, NPC_SPR_GRAMPS},
 
@@ -351,16 +351,7 @@ inline MapDef MAP_2 = {
             L"낚시꾼: 왠지 으스스하군... 자, 너 가져라!",
             nullptr
         }, NPC_SPR_FISHER},
-
-        // pokered OLD_MAN (17, 5) — _ViridianCityOldManHadMyCoffeeNowText (커피 영감님)
-        // SPRITE_GAMBLER (걸어다님) — NPC_SPR_GRAMPS
-        {17, 5, {
-            L"할아버지: 아하, 이제 커피를 마셨더니 기분이 좋군!",
-            L"할아버지: 그래, 지나가도 좋아!",
-            L"할아버지: 바쁜가? 시간이 곧 돈이지...",
-            nullptr
-        }, NPC_SPR_GRAMPS},
-    }, 8,  // npcs
+    }, 7,  // npcs
     {}, 0,  // trainers
     {
         {23, 25, MAP_VIRIDIAN_PC, 3, 7},
@@ -462,7 +453,7 @@ inline MapDef MAP_3 = {
         // 디그다 동굴 입구 차단 NPC — (12, 9) 워프 자리에 배치해서 진입 차단
         {12, 9, {
             L"연구원: 안쪽은 위험한 디그다가 많아!",
-            L"지금은 들어갈 수 없어. 다음에 다시 와줘.",
+            L"연구원: 지금은 들어갈 수 없어. 다음에 다시 와줘.",
             nullptr
         }, NPC_SPR_GENTLEMAN},
 
@@ -697,8 +688,8 @@ inline MapDef MAP_5 = {
         // (원본 (35,16)의 YOUNGSTER "브록한테 데려가줄게" 대신 배치)
         {35, 17, {
             L"할아버지: 으흠... 3번도로는 지금 공사중이라네.",
-            L"미안하지만 지금은 들어갈 수 없어.",
-            L"공사가 끝나면 다시 와주게.",
+            L"할아버지: 미안하지만 지금은 들어갈 수 없어.",
+            L"할아버지: 공사가 끝나면 다시 와주게.",
             nullptr
         }, NPC_SPR_GRAMPS},
 
@@ -912,8 +903,8 @@ inline MapDef MAP_8 = {
         // GYM_GUIDE (7,10) — pokered _PewterGymGuidePreAdviceText 요약본
         {7, 10, {
             L"안내인: 어이! 너 챔피언이 될 자질이 보이는걸!",
-            L"나는 트레이너는 아니지만 한 수 알려줄게.",
-            L"앞쪽 포켓몬이 먼저 나가니까 순서를 잘 정해!",
+            L"안내인: 나는 트레이너는 아니지만 한 수 알려줄게.",
+            L"안내인: 앞쪽 포켓몬이 먼저 나가니까 순서를 잘 정해!",
             nullptr
         }, NPC_SPR_GENTLEMAN},
     }, 1,  // npcs
@@ -1013,7 +1004,7 @@ inline MapDef MAP_11 = {
         // 간호사 조이 — 카운터 뒤 (3,1) — 대화 끝 → NURSE_HEAL
         {3, 1, {
             L"간호사 조이: 어서오세요!",
-            L"포켓몬을 치료해드리겠습니다... 잠시만요.",
+            L"간호사 조이: 포켓몬을 치료해드리겠습니다... 잠시만요.",
             L"완료! 포켓몬들이 모두 회복됐습니다!",
             nullptr
         }, NPC_SPR_NURSE, 2},
@@ -1051,7 +1042,7 @@ inline MapDef MAP_12 = {
         // 간호사 조이 — 카운터 뒤 (3,1) — 대화 끝 → NURSE_HEAL
         {3, 1, {
             L"간호사 조이: 어서오세요!",
-            L"포켓몬을 치료해드리겠습니다... 잠시만요.",
+            L"간호사 조이: 포켓몬을 치료해드리겠습니다... 잠시만요.",
             L"완료! 포켓몬들이 모두 회복됐습니다!",
             nullptr
         }, NPC_SPR_NURSE, 2},
@@ -1127,8 +1118,8 @@ inline MapDef MAP_14 = {
         // 점원 — 카운터 (0,5) facing RIGHT — pokered PewterMart 위치
         {0, 5, {
             L"점원: 어서오세요!",
-            L"프렌들리숍에 오신 것을 환영합니다.",
-            L"무엇을 도와드릴까요?",
+            L"점원: 프렌들리숍에 오신 것을 환영합니다.",
+            L"점원: 무엇을 도와드릴까요?",
             nullptr
         }, NPC_SPR_CLERK, 0, 0, 2 /* MART_PEWTER */},
     }, 1,  // npcs
@@ -1166,14 +1157,14 @@ inline MapDef MAP_15 = {
         // pokered ROUTE2GATE_OAKS_AIDE (1, 4) — SCIENTIST, FLASH HM 설명
         {1, 4, {
             L"오박사 보조원: 비전머신 플래시는",
-            L"가장 어두운 던전도 환하게 밝혀줍니다.",
+            L"오박사 보조원: 가장 어두운 던전도 환하게 밝혀줍니다.",
             nullptr
         }, NPC_SPR_GENTLEMAN},
 
         // pokered ROUTE2GATE_YOUNGSTER (5, 4) — Rock Tunnel/FLASH 안내
         {5, 4, {
-            L"포켓몬한테 플래시를 가르치면",
-            L"돌산터널을 통과할 수 있어!",
+            L"소년: 포켓몬한테 플래시를 가르치면",
+            L"소년: 돌산터널을 통과할 수 있어!",
             nullptr
         }, NPC_SPR_LITTLE_BOY},
     }, 2,  // npcs
@@ -1213,15 +1204,15 @@ inline MapDef MAP_16 = {
     {
         // pokered VIRIDIANFORESTNORTHGATE_SUPER_NERD (3, 2) — 포켓몬 다양성 팁
         {3, 2, {
-            L"많은 포켓몬은 숲이나 동굴에만 산다구!",
-            L"여기저기 다녀봐야 다양한 종류를 만날 수 있어!",
+            L"연구원: 많은 포켓몬은 숲이나 동굴에만 산다구!",
+            L"연구원: 여기저기 다녀봐야 다양한 종류를 만날 수 있어!",
             nullptr
         }, NPC_SPR_GENTLEMAN},
 
         // pokered VIRIDIANFORESTNORTHGATE_GRAMPS (2, 5) — CUT 기술 힌트
         {2, 5, {
             L"할아버지: 길가의 덤불을 봤니?",
-            L"특별한 포켓몬 기술로 베어낼 수 있단다.",
+            L"할아버지: 특별한 포켓몬 기술로 베어낼 수 있단다.",
             nullptr
         }, NPC_SPR_GRAMPS},
     }, 2,  // npcs
@@ -1260,15 +1251,15 @@ inline MapDef MAP_17 = {
     {
         // pokered VIRIDIANFORESTSOUTHGATE_GIRL (8, 4) — 숲 미로 경고
         {8, 4, {
-            L"상록숲 가는 거니?",
-            L"자연이 만든 미로니까 조심해야 해!",
+            L"안내인: 상록숲 가는 거니?",
+            L"안내인: 자연이 만든 미로니까 조심해야 해!",
             nullptr
         }, NPC_SPR_GIRL},
 
         // pokered VIRIDIANFORESTSOUTHGATE_LITTLE_GIRL (2, 4) — 꼬렛 잡았어?
         {2, 4, {
-            L"꼬렛은 작지만 물면 정말 아파!",
-            L"너 한 마리 잡았어?",
+            L"소녀: 꼬렛은 작지만 물면 정말 아파!",
+            L"소녀: 너 한 마리 잡았어?",
             nullptr
         }, NPC_SPR_LITTLE_GIRL},
     }, 2,  // npcs
@@ -1308,13 +1299,13 @@ inline MapDef MAP_18 = {
     {
         // COOLTRAINER_F (4,1) — pokered: SPRITE_COOLTRAINER_F facing DOWN
         {4, 1, {
-            L"좋아요!",
-            L"칠판을 잘 읽어보세요!",
+            L"연구원: 좋아요!",
+            L"연구원: 칠판을 잘 읽어보세요!",
             nullptr
         }, NPC_SPR_BRUNETTE},
         // BRUNETTE_GIRL (3,5) — pokered: SPRITE_BRUNETTE_GIRL facing UP
         {3, 5, {
-            L"휴~ 노트를 다 외우려고 노력 중이야.",
+            L"연구생: 휴~ 노트를 다 외우려고 노력 중이야.",
             nullptr
         }, NPC_SPR_BRUNETTE},
     }, 2,  // npcs
@@ -1352,12 +1343,12 @@ inline MapDef MAP_19 = {
         // BALDING_GUY (5,3) — pokered: SPRITE_BALDING_GUY (대머리 아저씨)
         {5, 3, {
             L"아저씨: 별명 짓는 건 재밌지만, 어렵단다.",
-            L"단순한 이름이 기억하기 가장 쉽지.",
+            L"아저씨: 단순한 이름이 기억하기 가장 쉽지.",
             nullptr
         }, NPC_SPR_GENTLEMAN},
         // LITTLE_GIRL (1,4) — pokered: SPRITE_LITTLE_GIRL
         {1, 4, {
-            L"여자아이: 우리 아빠도 포켓몬을 좋아하셔!",
+            L"소녀: 우리 아빠도 포켓몬을 좋아하셔!",
             nullptr
         }, NPC_SPR_LITTLE_GIRL},
         // SPEAROW + CLIPBOARD 통합: 케이지 'v' 옆 (4,5) floor 에서 인터랙트
