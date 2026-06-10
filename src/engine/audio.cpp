@@ -30,8 +30,27 @@ void Audio::init() {
     GetModuleFileNameA(nullptr, buf, MAX_PATH);
     std::string p(buf);
     size_t pos = p.find_last_of("\\/");
-    g_soundDir = (pos == std::string::npos) ? "" : p.substr(0, pos + 1);
-    g_soundDir += "sounds\\";
+    std::string exeDir = (pos == std::string::npos) ? "" : p.substr(0, pos + 1);
+
+    // sounds 폴더 위치를 후보 순서대로 탐색한다.
+    // (커밋된 build\PokemonRed.exe 를 clone 후 바로 실행하면 build\sounds\ 가
+    //  .gitignore 라 존재하지 않는다 → 상위 폴더의 커밋된 sounds\ 로 폴백해야 무음이 안 된다)
+    //   1) exe 폴더\sounds\      : build.bat 가 복사한 경우 / 배포 패키지
+    //   2) exe 상위 폴더\sounds\ : build\ 안의 exe + 저장소 루트의 sounds\
+    //   3) 작업 폴더\sounds\     : 저장소 루트에서 실행한 경우
+    const std::string cands[] = {
+        exeDir + "sounds\\",
+        exeDir + "..\\sounds\\",
+        "sounds\\",
+    };
+    g_soundDir = cands[0];   // 못 찾으면 첫 후보 유지 (기존 동작과 동일)
+    for (const std::string& c : cands) {
+        std::string probe = c + "se_cursor.wav";   // 항상 커밋되어 있는 효과음 파일
+        if (GetFileAttributesA(probe.c_str()) != INVALID_FILE_ATTRIBUTES) {
+            g_soundDir = c;
+            break;
+        }
+    }
     applyVol();   // 시작 시 기본 볼륨(약 1/3) 적용
 }
 
