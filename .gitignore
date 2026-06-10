@@ -6,8 +6,9 @@ build/hello.*
 *.o
 _dbg_*
 
-# 사운드: 원본(sounds/)만 커밋, build로 복사된 건 제외 (build.bat가 재생성)
-build/sounds/
+# 사운드: 원본(sounds/) + build/sounds/ 둘 다 커밋.
+# 커밋된 build/PokemonRed.exe 는 exe 옆 build/sounds/ 를 찾으므로, 컴파일러 없이
+# clone 후 exe 만 더블클릭하는 PC 에서도 BGM·효과음이 나오려면 build/sounds/ 도 포함해야 한다.
 
 # python 캐시 (사운드 합성기 tools/synth_audio.py)
 __pycache__/
